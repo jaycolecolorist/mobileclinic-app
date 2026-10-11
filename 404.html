@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Mobile Clinic</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Mobile Clinic" />
+    <meta name="application-name" content="Mobile Clinic" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/mobileclinic-app/apple-touch-icon.png" />
+    <link rel="manifest" href="/mobileclinic-app/manifest.json" />
+<style>
+  :root { --bg:#F5F5F7; --card:#fff; --ink:#0B0F17; --ink2:#545B69; --line:rgba(11,15,23,.12); --blue:#0047BB; --red:#DA3F3F; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#05070A; --card:#0F131A; --ink:#F4F6FA; --ink2:#A6AEBB; --line:rgba(255,255,255,.12); --blue:#2F6BFF; } }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  main { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; padding-top:max(24px, env(safe-area-inset-top)); }
+  .card { width:100%; max-width:380px; background:var(--card); border-radius:28px; padding:32px 24px 26px; text-align:center; box-shadow:0 20px 60px rgba(6,18,46,.08); }
+  h1 { font-size:26px; letter-spacing:-.5px; margin:18px 0 6px; }
+  p { color:var(--ink2); font-size:15px; line-height:1.45; margin:0 0 22px; }
+  input { width:100%; height:52px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--ink); font-size:17px; padding:0 20px; outline:none; text-align:center; }
+  input:focus { border-color:var(--blue); }
+  button { margin-top:12px; width:100%; height:52px; border-radius:999px; border:0; background:var(--blue); color:#fff; font-size:17px; font-weight:600; }
+  button:disabled { opacity:.5; }
+  .err { color:var(--red); font-size:14px; min-height:20px; margin-top:12px; }
+  .ar { direction:rtl; font-size:14px; margin-top:4px; }
+</style>
+</head><body><main><form class="card" id="f" autocomplete="off">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="1054.89 386.12 356.14 534.51" width="44" height="66"><path id="upper" fill="#94D600" d="M1343.96 468.91L1291.35 668.02A65.56 65.56 0 0 1 1211.62 714.77L1110.08 688.63A70.84 70.84 0 0 1 1076.97 570.62L1235.63 407.59A64.35 64.35 0 0 1 1343.96 468.91Z"/><path id="lower" fill="#94D600" d="M1218.56 591.42L1319.83 564.24A70.84 70.84 0 0 1 1406.69 650.72L1348.70 870.69A64.35 64.35 0 0 1 1224.22 870.57L1172.12 671.32A65.56 65.56 0 0 1 1218.56 591.42Z"/><path id="overlap" fill="#0047BB" d="M1172.12 671.32A65.56 65.56 0 0 1 1218.56 591.42L1318.69 564.54L1291.35 668.02A65.56 65.56 0 0 1 1211.62 714.77L1181.45 707.00L1172.12 671.32Z"/></svg>
+
+  <h1>Mobile Clinic</h1>
+  <p>Private preview. Enter the password you were given.<span class="ar" style="display:block">معاينة خاصة. أدخل كلمة المرور.</span></p>
+  <input id="pw" type="password" placeholder="Password" autocapitalize="none" autocorrect="off" spellcheck="false" />
+  <button id="go" type="submit">Open the app</button>
+  <div class="err" id="err"></div>
+</form></main>
+<script>
+const BASE = "/mobileclinic-app/", SALT = "okTtrU8wpz7lklqT9XdYFQ==", ITER = 310000;
+const $ = (id) => document.getElementById(id);
+function idb() { return new Promise((res, rej) => { const r = indexedDB.open('mc-lock', 1); r.onupgradeneeded = () => r.result.createObjectStore('k'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function put(v) { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('k', 'readwrite'); t.objectStore('k').put(v, 'key'); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+const ready = 'serviceWorker' in navigator ? navigator.serviceWorker.register(BASE + 'sw.js', { scope: BASE }).then(() => navigator.serviceWorker.ready) : null;
+if (!ready) $('err').textContent = 'This browser cannot open the preview. Use Safari or Chrome.';
+$('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = $('pw').value.trim();
+  if (!pw || !ready) return;
+  $('go').disabled = true; $('go').textContent = 'Opening…'; $('err').textContent = '';
+  try {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+    const salt = Uint8Array.from(atob(SALT), (c) => c.charCodeAt(0));
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITER }, base, 256);
+    const key = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
+    const b = new Uint8Array(await (await fetch(BASE + 'check.enc', { cache: 'no-cache' })).arrayBuffer());
+    await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.slice(0, 12) }, key, b.slice(12));
+    await put(new Uint8Array(bits));
+    const reg = await ready;
+    if (!navigator.serviceWorker.controller) await new Promise((r) => { navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }); setTimeout(r, 3000); });
+    (navigator.serviceWorker.controller || reg.active)?.postMessage('key-updated');
+    location.reload();
+  } catch (err) {
+    $('go').disabled = false; $('go').textContent = 'Open the app';
+    $('err').textContent = 'That password is not right. Try again.';
+  }
+});
+</script></body></html>
